@@ -1,0 +1,39 @@
+{
+  "version": "0.0.1",
+  "name": "@gridsome/spinup-cli",
+  "description": "A command line tool for creating portals at Rebilly.",
+  "homepage": "https://github.com/Rebilly/rebilly-spinup/tree/master/packages/spinup-cli#readme",
+  "repository": "https://github.com/Rebilly/rebilly-spinup/tree/master/packages/spinup-cli",
+  "main": "bin/rebilly-spinup.js",
+  "license": "MIT",
+  "bin": {
+    "rebilly-spinup": "./bin/rebilly-spinup.js"
+  },
+  "keywords": [
+    "rebilly-spinup",
+    "cli"
+  ],
+  "dependencies": {
+    "@hjvedvik/tasks": "^0.0.8",
+    "chalk": "^2.4.1",
+    "commander": "^2.15.1",
+    "didyoumean": "^1.2.1",
+    "execa": "^0.10.0",
+    "find-up": "^2.1.0",
+    "fs-extra": "^6.0.1",
+    "resolve-cwd": "^2.0.0",
+    "semver": "^5.6.0",
+    "sort-package-json": "^1.15.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "contributors": [
+    {
+      "name": "Rebilly team"
+    }
+  ],
+  "engines": {
+    "node": ">=8"
+  }
+}
