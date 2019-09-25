@@ -61,7 +61,7 @@ const delegateCommand = async (cmd, params = null) => {
         // console.log(chalk.cyan(`Using global`, hasGridsomeActions));
         try {
             // found global install or within folder
-            await exec(`gridsome ${cmd}`, compiledParams);
+            await exec(`gridsome ${cmd}`, compiledParams, {shell: true});
         } catch(err) {
             console.error(chalk.red(err.stack));
             process.exitCode = 1;
