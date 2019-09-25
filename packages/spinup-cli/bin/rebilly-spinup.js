@@ -6,7 +6,6 @@ const program = require('commander');
 const didYouMean = require('didyoumean');
 const resolveCwd = require('resolve-cwd');
 const updateNotifier = require('update-notifier');
-const shell = require('shelljs');
 const resolveVersions = require('../lib/utils/version');
 const pkgPath = require('find-up').sync('package.json');
 const {hasYarn} = require('../lib/utils');
@@ -42,13 +41,20 @@ try {
     console.log(err);
 }
 
+const wrapExecutor = () => {
+    if (hasGridsomeActions) {
+        // do actual gridsome
+    } else
+    console.log(chalk.red(`Unknown command ${chalk.bold(command)}`));
+};
+
 program
     .command('develop')
     .description('start development server')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
     .action(args => {
-        if(hasGridsomeActions) {
+        if (hasGridsomeActions) {
             // do actual gridsome
         }
         console.log('dev', args.port);
