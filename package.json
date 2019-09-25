@@ -1,19 +1,17 @@
 {
+  "name": "root",
   "private": true,
   "workspaces": [
-    "gridsome",
-    "packages/*",
-    "projects/*"
+    "packages/*"
   ],
   "scripts": {
     "bootstrap": "lerna bootstrap"
   },
   "devDependencies": {
-    "@lerna/conventional-commits": "^3.4.1",
-    "lerna": "^3.4.0"
-  },
-  "engines": {
-    "node": ">=8.3",
-    "yarn": "^1.5.1"
+    "eslint": "^6.4.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-vue": "^5.2.3",
+    "lerna": "^3.16.4"
   }
 }

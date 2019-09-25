@@ -1,128 +1,144 @@
-const path = require('path')
-const fs = require('fs-extra')
-const execa = require('execa')
-const chalk = require('chalk')
-const Tasks = require('@hjvedvik/tasks')
-const { hasYarn } = require('../utils')
+const path = require('path');
+const fs = require('fs-extra');
+const chalk = require('chalk');
+const Tasks = require('@hjvedvik/tasks');
+const sortPackageJson = require('sort-package-json');
+const {hasYarn, exec} = require('../utils');
 
-module.exports = async (template) => {
-  const repoName = `spinup-template-${template.toLowerCase()}`
-  const dir = aboslutePath(repoName)
-  const projectName = path.basename(dir)
-  const useYarn = await hasYarn()
+// TODO consider global yarn install
+module.exports = async (name, starter = 'default') => {
+    const dir = absolutePath(name);
+    const projectName = path.basename(dir);
+    const starters = ['default', 'wordpress'];
+    const useYarn = await hasYarn();
 
-  try {
-    const files = fs.existsSync(dir) ? fs.readdirSync(dir) : []
-    if (files.length > 1) {
-      return console.log(chalk.red(`Directory «${projectName}» is not empty.`))
+    try {
+        const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+        if (files.length > 1) {
+            return console.log(chalk.red(`Directory «${projectName}» is not empty.`));
+        }
+    } catch (err) {
+        throw new Error(err.message);
     }
-  } catch (err) {
-    throw new Error(err.message)
-  }
 
-  const templates = ['billing', 'checkout', 'kyc']
-  let repo
-  if (templates.includes(template)) {
-    repo = `https://github.com/Rebilly/${repoName}.git`
-  } else {
-    repo = template
-  }
+    if (/^([a-z0-9_-]+)\//i.test(starter)) {
+        starter = `https://github.com/${starter}.git`;
+    } else if (starters.includes(starter)) {
+        starter = `https://github.com/gridsome/gridsome-starter-${starter}.git`;
+    }
 
-  const developCommand = 'rebilly-spinup develop'
-  const buildCommand = 'rebilly-spinup build'
+    const developCommand = 'rebilly-spinup develop';
+    const buildCommand = 'rebilly-spinup build';
 
-  const tasks = new Tasks([
-    {
-      title: `Clone repository, generate the project: ${chalk.green(projectName)}`,
-      task: async () => {
-        try {
-          await exec('git', ['clone', repo, dir, '--single-branch'])
-          await fs.remove(path.join(dir, '.git'))
-        } catch (err) {
-          throw new Error(err.message)
-        }
-      }
-    },
-    {
-      title: `Install dependencies`,
-      task: (_, task) => {
-        const command = useYarn ? 'yarn' : 'npm'
-        const stdio = ['ignore', 'pipe', 'ignore']
-        const options = { cwd: projectDir, stdio }
-        const args = []
-
-        if (command === 'npm') {
-          task.setStatus('Installing dependencies with npm...')
-          args.push('install', '--loglevel', 'error')
-        } else if (command === 'yarn') {
-          args.push('--json')
-        }
-
-        return new Promise((resolve, reject) => {
-          const child = exec(command, args, options, projectDir)
-
-          child.stdout.on('data', buffer => {
-            let str = buffer.toString().trim()
-
-            if (str && command === 'yarn' && str.indexOf('"type":') !== -1) {
-              const newLineIndex = str.lastIndexOf('\n')
-
-              if (newLineIndex !== -1) {
-                str = str.substr(newLineIndex)
-              }
-
-              try {
-                const { type, data } = JSON.parse(str)
-
-                if (type === 'step') {
-                  const { message, current, total } = data
-                  task.setStatus(`${message} (${current} of ${total})`)
+    const tasks = new Tasks([
+        {
+            title: `Clone ${starter}`,
+            task: async () => {
+                try {
+                    await exec('git', ['clone', starter, dir, '--single-branch']);
+                    await fs.remove(path.join(dir, '.git'));
+                } catch (err) {
+                    throw new Error(err.message);
                 }
-              } catch (e) {}
-            } else {
-              task.setStatus(`Installing dependencies with ${command}...`)
-            }
-          })
+            },
+        },
+        {
+            title: 'Update project package.json',
+            task: async (_, task) => {
+                try {
+                    await updatePkg(`${dir}/package.json`, {
+                        name: projectName,
+                        private: true,
+                    });
+                } catch (err) {
+                    task.skip('Failed to update package.json');
+                }
+            },
+        },
+        {
+            title: `Install dependencies`,
+            task: (_, task) => {
+                const command = useYarn ? 'yarn' : 'npm';
+                const stdio = ['ignore', 'pipe', 'ignore'];
+                const options = {cwd: dir, stdio};
+                const args = [];
 
-          child.on('close', code => {
-            if (code !== 0) {
-              return reject(
-                new Error(
-                  `Failed to install dependencies with ${command}. ` +
-                  `Please enter ${chalk.cyan(repoName)} directory and ` +
-                  `install dependencies with yarn or npm manually. ` +
-                  `Then run ${chalk.cyan(developCommand)} to start ` +
-                  `local development.\n\n    Exit code ${code}`
-                )
-              )
-            }
+                if (command === 'npm') {
+                    task.setStatus('Installing dependencies with npm...');
+                    args.push('install', '--loglevel', 'error');
+                } else if (command === 'yarn') {
+                    args.push('--json');
+                }
 
-            resolve()
-          })
-        })
-      }
+                return new Promise((resolve, reject) => {
+                    const child = exec(command, args, options, dir);
+
+                    child.stdout.on('data', buffer => {
+                        let str = buffer.toString().trim();
+
+                        if (str && command === 'yarn' && str.indexOf('"type":') !== -1) {
+                            const newLineIndex = str.lastIndexOf('\n');
+
+                            if (newLineIndex !== -1) {
+                                str = str.substr(newLineIndex);
+                            }
+
+                            try {
+                                const {type, data} = JSON.parse(str);
+
+                                if (type === 'step') {
+                                    const {message, current, total} = data;
+                                    task.setStatus(`${message} (${current} of ${total})`);
+                                }
+                            } catch (e) {
+                            }
+                        } else {
+                            task.setStatus(`Installing dependencies with ${command}...`);
+                        }
+                    });
+
+                    child.on('close', code => {
+                        if (code !== 0) {
+                            return reject(
+                                new Error(
+                                    `Failed to install dependencies with ${command}. ` +
+                                    `Please enter ${chalk.cyan(name)} directory and ` +
+                                    `install dependencies with yarn or npm manually. ` +
+                                    `Then run ${chalk.cyan(developCommand)} to start ` +
+                                    `local development.\n\n    Exit code ${code}`,
+                                ),
+                            );
+                        }
+
+                        resolve();
+                    });
+                });
+            },
+        },
+    ]);
+
+    await tasks.run();
+
+    console.log();
+    if (process.cwd() !== dir) {
+        console.log(`  - Enter directory ${chalk.green(`cd ${name}`)}`);
     }
-  ])
+    console.log(`  - Run ${chalk.green(developCommand)} to start local development`);
+    console.log(`  - Run ${chalk.green(buildCommand)} to build for production`);
+    console.log();
+};
 
-  await tasks.run()
+async function updatePkg(pkgPath, obj) {
+    const content = await fs.readFile(pkgPath, 'utf-8');
+    const pkg = JSON.parse(content);
+    const newPkg = sortPackageJson(Object.assign(pkg, obj));
 
-  console.log()
-  if (process.cwd() !== tmpDir) {
-    console.log(`  - Enter directory ${chalk.green(`cd ${repoName}`)}`)
-  }
-  console.log(`  - Run ${chalk.green(developCommand)} to start local development`)
-  console.log(`  - Run ${chalk.green(buildCommand)} to build for production`)
-  console.log()
+    await fs.outputFile(pkgPath, JSON.stringify(newPkg, null, 2));
 }
 
-function exec (cmd, args = [], options = {}, context = process.cwd()) {
-  return execa(cmd, args, {
-    stdio: options.stdio || 'ignore',
-    cwd: context
-  })
-}
-
-function aboslutePath (string) {
-  if (path.isAbsolute(string)) return string
-  return path.join(process.cwd(), string)
+function absolutePath(string) {
+    if (path.isAbsolute(string)) {
+        return string;
+    }
+    return path.join(process.cwd(), string)
 }
