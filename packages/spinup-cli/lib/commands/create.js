@@ -1,11 +1,11 @@
 const path = require('path');
 const fs = require('fs-extra');
-const execa = require('execa');
 const chalk = require('chalk');
 const Tasks = require('@hjvedvik/tasks');
 const sortPackageJson = require('sort-package-json');
-const {hasYarn} = require('../utils');
+const {hasYarn, exec} = require('../utils');
 
+// TODO consider global yarn install
 module.exports = async (name, starter = 'default') => {
     const dir = absolutePath(name);
     const projectName = path.basename(dir);
@@ -27,8 +27,8 @@ module.exports = async (name, starter = 'default') => {
         starter = `https://github.com/gridsome/gridsome-starter-${starter}.git`;
     }
 
-    const developCommand = 'gridsome develop';
-    const buildCommand = 'gridsome build';
+    const developCommand = 'rebilly-spinup develop';
+    const buildCommand = 'rebilly-spinup build';
 
     const tasks = new Tasks([
         {
@@ -134,13 +134,6 @@ async function updatePkg(pkgPath, obj) {
     const newPkg = sortPackageJson(Object.assign(pkg, obj));
 
     await fs.outputFile(pkgPath, JSON.stringify(newPkg, null, 2));
-}
-
-function exec(cmd, args = [], options = {}, context = process.cwd()) {
-    return execa(cmd, args, {
-        stdio: options.stdio || 'ignore',
-        cwd: context,
-    });
 }
 
 function absolutePath(string) {

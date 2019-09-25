@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const path = require('path');
 const chalk = require('chalk');
 const program = require('commander');
 const didYouMean = require('didyoumean');
@@ -8,12 +7,11 @@ const resolveCwd = require('resolve-cwd');
 const updateNotifier = require('update-notifier');
 const resolveVersions = require('../lib/utils/version');
 const pkgPath = require('find-up').sync('package.json');
-const {hasYarn} = require('../lib/utils');
+const {hasYarn, exec} = require('../lib/utils');
 
 const pkg = require('../package.json');
 const notifier = updateNotifier({pkg});
 
-const context = pkgPath ? path.resolve(path.dirname(pkgPath)) : process.cwd();
 const version = resolveVersions(pkgPath);
 
 const cliCommands = ['create', 'build', 'develop', 'explore'];
@@ -32,60 +30,68 @@ program
         return wrapCommand(create)(...args);
     });
 
+const fallbackExecutor = resolveCwd.silent('@gridsome/cli');
 
 let hasGridsomeActions;
-
 try {
     hasGridsomeActions = resolveCwd.silent('gridsome');
 } catch (err) {
     console.log(err);
 }
 
-const wrapExecutor = () => {
+/**
+ * Wrap a command to execute the right delegate (global, local) and regenerate
+ * its intended parameters.
+ * @param {string} cmd
+ * @param {array?} params
+ * @returns {Promise<void>|undefined}
+ */
+const delegateCommand = async (cmd, params = null) => {
+    let compiledParams;
+    if (params) {
+        compiledParams = [];
+        // build `--port 9900 --host 4.4.4.4` as an array
+        Object.entries(params).forEach(([flag, value]) => {
+            compiledParams = [...compiledParams, `--${flag}`, value];
+        });
+    }
     if (hasGridsomeActions) {
-        // do actual gridsome
-    } else
-    console.log(chalk.red(`Unknown command ${chalk.bold(command)}`));
+        // found global install
+        await exec(`gridsome ${cmd}`, compiledParams);
+    } else if (fallbackExecutor) {
+        // using local CLI, will only work for `create`
+        await exec(`node ${fallbackExecutor} ${cmd}`, compiledParams);
+    } else {
+        console.log(chalk.red(`Unknown command ${chalk.bold(cmd)}`));
+    }
 };
 
+// transposed from Gridsome's main package
 program
     .command('develop')
     .description('start development server')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
-    .action(args => {
-        if (hasGridsomeActions) {
-            // do actual gridsome
-        }
-        console.log('dev', args.port);
-    });
+    .action(({port, host}) => delegateCommand('develop', {port, host}));
 
 program
     .command('build')
     .description('build site for production')
-    .action(() => {
-        const executor = resolveCwd('@gridsome/cli');
-        console.log('build', hasGridsomeActions);
-        // shell.exec(`node ${executor} create test`);
-    });
+    .action(() => delegateCommand('build'));
 
 program
     .command('explore')
     .description('explore GraphQL data')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
-    .action(args => {
-        console.log('explore', args);
-    });
+    .action(({port, host}) => delegateCommand('explore', {port, host}));
 
 program
     .command('serve')
     .description('start a production node.js server')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
-    .action(args => {
-        console.log('serve', args);
-    });
+    .action(({port, host}) => delegateCommand('serve', {port, host}));
 
 // show a warning if the command does not exist
 program.arguments('<command>').action(async command => {
@@ -113,8 +119,10 @@ program.on('--help', () => {
     console.log();
 });
 
+// load flags into commands
 program.parse(process.argv);
 
+// no flags detected
 if (!process.argv.slice(2).length) {
     program.outputHelp();
 }

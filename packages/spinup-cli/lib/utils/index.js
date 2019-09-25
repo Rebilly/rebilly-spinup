@@ -10,6 +10,13 @@ exports.hasYarn = async function () {
     return false;
 };
 
+exports.exec = function exec(cmd, args = [], options = {}, context = process.cwd()) {
+    return execa(cmd, args, {
+        stdio: options.stdio || 'ignore',
+        cwd: context,
+    });
+};
+
 exports.isGridsomeProject = function (pkgPath) {
     const projectPkgJson = pkgPath ? require(pkgPath) : {};
     const {devDependencies = {}, dependencies = {}} = projectPkgJson;
