@@ -8,6 +8,10 @@
     "bootstrap": "lerna bootstrap"
   },
   "devDependencies": {
+    "eslint": "^6.4.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-vue": "^5.2.3",
     "lerna": "^3.16.4"
   }
 }
