@@ -6,10 +6,10 @@ const sortPackageJson = require('sort-package-json');
 const {hasYarn, exec} = require('../utils');
 
 // TODO consider global yarn install
-module.exports = async (name, starter = 'default') => {
+module.exports = async (name, template = 'default') => {
     const dir = absolutePath(name);
     const projectName = path.basename(dir);
-    const starters = ['default', 'wordpress'];
+    const starters = ['billing-portal'];
     const useYarn = await hasYarn();
 
     try {
@@ -20,11 +20,11 @@ module.exports = async (name, starter = 'default') => {
     } catch (err) {
         throw new Error(err.message);
     }
-
-    if (/^([a-z0-9_-]+)\//i.test(starter)) {
-        starter = `https://github.com/${starter}.git`;
-    } else if (starters.includes(starter)) {
-        starter = `https://github.com/gridsome/gridsome-starter-${starter}.git`;
+    // detect `rebilly/spinup-template-kyc`
+    if (/^([a-z0-9_-]+)\//i.test(template)) {
+        template = `https://github.com/${template}.git`
+    } else if (starters.includes(template)) {
+        template = `https://github.com/Rebilly/spinup-template-${template}.git`;
     }
 
     const developCommand = 'rebilly-spinup develop';
@@ -32,10 +32,10 @@ module.exports = async (name, starter = 'default') => {
 
     const tasks = new Tasks([
         {
-            title: `Clone ${starter}`,
+            title: `Clone ${template}`,
             task: async () => {
                 try {
-                    await exec('git', ['clone', starter, dir, '--single-branch']);
+                    await exec('git', ['clone', template, dir, '--single-branch']);
                     await fs.remove(path.join(dir, '.git'));
                 } catch (err) {
                     throw new Error(err.message);

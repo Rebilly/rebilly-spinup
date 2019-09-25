@@ -10,6 +10,7 @@ const pkgPath = require('find-up').sync('package.json');
 const {hasYarn, exec} = require('../lib/utils');
 
 const pkg = require('../package.json');
+// registry checker for new CLI version
 const notifier = updateNotifier({pkg});
 
 const version = resolveVersions(pkgPath);
@@ -23,8 +24,8 @@ program
 
 // create
 program
-    .command('create <name> [starter]')
-    .description('create a new website')
+    .command('create <name> [template]')
+    .description('spinup a new website')
     .action((...args) => {
         const create = require('../lib/commands/create');
         return wrapCommand(create)(...args);
@@ -34,6 +35,7 @@ const fallbackExecutor = resolveCwd.silent('@gridsome/cli');
 
 let hasGridsomeActions;
 try {
+    // check for gridsome install globally or within current folder
     hasGridsomeActions = resolveCwd.silent('gridsome');
 } catch (err) {
     console.log(err);
@@ -43,7 +45,7 @@ try {
  * Wrap a command to execute the right delegate (global, local) and regenerate
  * its intended parameters.
  * @param {string} cmd
- * @param {array?} params
+ * @param {{}?} params
  * @returns {Promise<void>|undefined}
  */
 const delegateCommand = async (cmd, params = null) => {
@@ -56,39 +58,52 @@ const delegateCommand = async (cmd, params = null) => {
         });
     }
     if (hasGridsomeActions) {
-        // found global install
-        await exec(`gridsome ${cmd}`, compiledParams);
+        // console.log(chalk.cyan(`Using global`, hasGridsomeActions));
+        try {
+            // found global install or within folder
+            await exec(`gridsome ${cmd}`, compiledParams);
+        } catch(err) {
+            console.error(chalk.red(err.stack));
+            process.exitCode = 1;
+        }
     } else if (fallbackExecutor) {
-        // using local CLI, will only work for `create`
-        await exec(`node ${fallbackExecutor} ${cmd}`, compiledParams);
+        // console.log(chalk.cyan(`Using local`));
+        try {
+            // using local CLI, will only work for `create`
+            await exec(`node ${fallbackExecutor} ${cmd}`, compiledParams);
+        } catch(err) {
+            console.error(chalk.red(err.stack));
+            process.exitCode = 1;
+        }
     } else {
-        console.log(chalk.red(`Unknown command ${chalk.bold(cmd)}`));
+        console.log(chalk.red(`Unable to execute command ${chalk.bold(cmd)}`));
+        console.log(chalk.red(`It's possible the current folder does not contain a valid website`));
     }
 };
 
 // transposed from Gridsome's main package
 program
     .command('develop')
-    .description('start development server')
+    .description('start development server (Gridsome)')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
     .action(({port, host}) => delegateCommand('develop', {port, host}));
 
 program
     .command('build')
-    .description('build site for production')
+    .description('build site for production (Gridsome)')
     .action(() => delegateCommand('build'));
 
 program
     .command('explore')
-    .description('explore GraphQL data')
+    .description('explore GraphQL data (Gridsome)')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
     .action(({port, host}) => delegateCommand('explore', {port, host}));
 
 program
     .command('serve')
-    .description('start a production node.js server')
+    .description('start a production node.js server (Gridsome)')
     .option('-p, --port <port>', 'use specified port (default: 8080)')
     .option('-h, --host <host>', 'use specified host (default: 0.0.0.0)')
     .action(({port, host}) => delegateCommand('serve', {port, host}));
@@ -97,7 +112,6 @@ program
 program.arguments('<command>').action(async command => {
     const {isGridsomeProject, hasYarn} = require('../lib/utils');
     const suggestion = didYouMean(command, cliCommands);
-
     if (isGridsomeProject(pkgPath) && !suggestion) {
         const useYarn = await hasYarn();
         console.log();
@@ -127,6 +141,7 @@ if (!process.argv.slice(2).length) {
     program.outputHelp();
 }
 
+// check if a newer version of the CLI exists on the registry
 if (notifier.update) {
     (async () => {
         const withYarn = await hasYarn();
