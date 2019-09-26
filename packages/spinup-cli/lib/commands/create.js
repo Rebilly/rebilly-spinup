@@ -5,7 +5,6 @@ const Tasks = require('@hjvedvik/tasks');
 const sortPackageJson = require('sort-package-json');
 const {hasYarn, exec} = require('../utils');
 
-// TODO consider global yarn install
 module.exports = async (name, template = 'default') => {
     const dir = absolutePath(name);
     const projectName = path.basename(dir);
