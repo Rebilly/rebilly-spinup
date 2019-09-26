@@ -1,6 +1,6 @@
 #Rebilly Spinup
 
-Monorepository encompasing all packages relevant to the Spinup Framework.
+Monorepository encompassing all packages relevant to the Spinup Framework.
 
 ## Running
 
