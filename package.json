@@ -5,7 +5,8 @@
     "packages/*"
   ],
   "scripts": {
-    "bootstrap": "lerna bootstrap"
+    "bootstrap": "lerna bootstrap",
+    "lint": "eslint \"packages/**/*.js\""
   },
   "devDependencies": {
     "eslint": "^6.4.0",

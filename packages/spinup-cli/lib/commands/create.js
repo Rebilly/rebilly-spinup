@@ -5,6 +5,21 @@ const Tasks = require('@hjvedvik/tasks');
 const sortPackageJson = require('sort-package-json');
 const {hasYarn, exec} = require('../utils');
 
+async function updatePkg(pkgPath, obj) {
+    const content = await fs.readFile(pkgPath, 'utf-8');
+    const pkg = JSON.parse(content);
+    const newPkg = sortPackageJson(Object.assign(pkg, obj));
+
+    await fs.outputFile(pkgPath, JSON.stringify(newPkg, null, 2));
+}
+
+function absolutePath(string) {
+    if (path.isAbsolute(string)) {
+        return string;
+    }
+    return path.join(process.cwd(), string);
+}
+
 module.exports = async (name, template = 'default') => {
     const dir = absolutePath(name);
     const projectName = path.basename(dir);
@@ -21,7 +36,7 @@ module.exports = async (name, template = 'default') => {
     }
     // detect `rebilly/spinup-template-kyc`
     if (/^([a-z0-9_-]+)\//i.test(template)) {
-        template = `https://github.com/${template}.git`
+        template = `https://github.com/${template}.git`;
     } else if (starters.includes(template)) {
         template = `https://github.com/Rebilly/spinup-template-${template}.git`;
     }
@@ -90,6 +105,7 @@ module.exports = async (name, template = 'default') => {
                                     task.setStatus(`${message} (${current} of ${total})`);
                                 }
                             } catch (e) {
+                                // do nothing
                             }
                         } else {
                             task.setStatus(`Installing dependencies with ${command}...`);
@@ -100,16 +116,16 @@ module.exports = async (name, template = 'default') => {
                         if (code !== 0) {
                             return reject(
                                 new Error(
-                                    `Failed to install dependencies with ${command}. ` +
-                                    `Please enter ${chalk.cyan(name)} directory and ` +
-                                    `install dependencies with yarn or npm manually. ` +
-                                    `Then run ${chalk.cyan(developCommand)} to start ` +
-                                    `local development.\n\n    Exit code ${code}`,
+                                    `Failed to install dependencies with ${command}. `
+                                    + `Please enter ${chalk.cyan(name)} directory and `
+                                    + `install dependencies with yarn or npm manually. `
+                                    + `Then run ${chalk.cyan(developCommand)} to start `
+                                    + `local development.\n\n    Exit code ${code}`,
                                 ),
                             );
                         }
 
-                        resolve();
+                        return resolve();
                     });
                 });
             },
@@ -126,18 +142,3 @@ module.exports = async (name, template = 'default') => {
     console.log(`  - Run ${chalk.green(buildCommand)} to build for production`);
     console.log();
 };
-
-async function updatePkg(pkgPath, obj) {
-    const content = await fs.readFile(pkgPath, 'utf-8');
-    const pkg = JSON.parse(content);
-    const newPkg = sortPackageJson(Object.assign(pkg, obj));
-
-    await fs.outputFile(pkgPath, JSON.stringify(newPkg, null, 2));
-}
-
-function absolutePath(string) {
-    if (path.isAbsolute(string)) {
-        return string;
-    }
-    return path.join(process.cwd(), string)
-}
