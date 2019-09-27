@@ -5,15 +5,24 @@ const program = require('commander');
 const didYouMean = require('didyoumean');
 const resolveCwd = require('resolve-cwd');
 const updateNotifier = require('update-notifier');
-const resolveVersions = require('../lib/utils/version');
 const pkgPath = require('find-up').sync('package.json');
-const {hasYarn, exec} = require('../lib/utils');
 
+const resolveVersions = require('../lib/utils/version');
+const {isGridsomeProject, hasYarn, exec} = require('../lib/utils');
+const create = require('../lib/commands/create');
 const pkg = require('../package.json');
+
 // registry checker for new CLI version
 const notifier = updateNotifier({pkg});
 const version = resolveVersions(pkgPath);
 const cliCommands = ['create', 'build', 'develop', 'explore'];
+
+function wrapCommand(fn) {
+    return (...args) => fn(...args).catch(err => {
+        console.error(chalk.red(err.stack));
+        process.exitCode = 1;
+    });
+}
 
 // version
 program
@@ -24,12 +33,7 @@ program
 program
     .command('create <name> [template]')
     .description('spinup a new website')
-    .action((...args) => {
-        // executes from CLI's scope and doesn't require external
-        // dependencies
-        const create = require('../lib/commands/create');
-        return wrapCommand(create)(...args);
-    });
+    .action((...args) => wrapCommand(create)(...args));
 
 let hasGridsomeActions;
 try {
@@ -64,7 +68,7 @@ const delegateCommand = async (cmd, params = null) => {
                 // output stdout to current context and ignore everything else
                 stdio: ['ignore', process.stdout, 'ignore'],
             });
-        } catch(err) {
+        } catch (err) {
             console.error(chalk.red(err.stack));
             process.exitCode = 1;
         }
@@ -103,7 +107,6 @@ program
 
 // show a warning if the command does not exist
 program.arguments('<command>').action(async command => {
-    const {isGridsomeProject, hasYarn} = require('../lib/utils');
     const suggestion = didYouMean(command, cliCommands);
     if (isGridsomeProject(pkgPath) && !suggestion) {
         const useYarn = await hasYarn();
@@ -145,13 +148,4 @@ if (notifier.update) {
         console.log(`${margin} Run ${chalk.cyan(command)} to update`);
         console.log();
     })();
-}
-
-function wrapCommand(fn) {
-    return (...args) => {
-        return fn(...args).catch(err => {
-            console.error(chalk.red(err.stack));
-            process.exitCode = 1;
-        });
-    };
 }
