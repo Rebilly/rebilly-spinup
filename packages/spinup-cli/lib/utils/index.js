@@ -14,6 +14,7 @@ exports.exec = function exec(cmd, args = [], options = {}, context = process.cwd
     return execa(cmd, args, {
         stdio: options.stdio || 'ignore',
         cwd: context,
+        shell: options.shell || false,
     });
 };
 

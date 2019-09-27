@@ -12,9 +12,7 @@ const {hasYarn, exec} = require('../lib/utils');
 const pkg = require('../package.json');
 // registry checker for new CLI version
 const notifier = updateNotifier({pkg});
-
 const version = resolveVersions(pkgPath);
-
 const cliCommands = ['create', 'build', 'develop', 'explore'];
 
 // version
@@ -27,16 +25,16 @@ program
     .command('create <name> [template]')
     .description('spinup a new website')
     .action((...args) => {
+        // executes from CLI's scope and doesn't require external
+        // dependencies
         const create = require('../lib/commands/create');
         return wrapCommand(create)(...args);
     });
 
-const fallbackExecutor = resolveCwd.silent('@gridsome/cli');
-
 let hasGridsomeActions;
 try {
     // check for gridsome install globally or within current folder
-    hasGridsomeActions = resolveCwd.silent('gridsome');
+    hasGridsomeActions = resolveCwd.silent('gridsome') !== null;
 } catch (err) {
     console.log(err);
 }
@@ -49,35 +47,30 @@ try {
  * @returns {Promise<void>|undefined}
  */
 const delegateCommand = async (cmd, params = null) => {
-    let compiledParams;
+    let compiledParams = [];
     if (params) {
-        compiledParams = [];
         // build `--port 9900 --host 4.4.4.4` as an array
         Object.entries(params).forEach(([flag, value]) => {
-            compiledParams = [...compiledParams, `--${flag}`, value];
+            if (value) {
+                compiledParams = [...compiledParams, `--${flag}`, value];
+            }
         });
     }
     if (hasGridsomeActions) {
-        // console.log(chalk.cyan(`Using global`, hasGridsomeActions));
         try {
             // found global install or within folder
-            await exec(`gridsome ${cmd}`, compiledParams, {shell: true});
-        } catch(err) {
-            console.error(chalk.red(err.stack));
-            process.exitCode = 1;
-        }
-    } else if (fallbackExecutor) {
-        // console.log(chalk.cyan(`Using local`));
-        try {
-            // using local CLI, will only work for `create`
-            await exec(`node ${fallbackExecutor} ${cmd}`, compiledParams);
+            await exec(`gridsome ${cmd}`, compiledParams, {
+                shell: true,
+                // output stdout to current context and ignore everything else
+                stdio: ['ignore', process.stdout, 'ignore'],
+            });
         } catch(err) {
             console.error(chalk.red(err.stack));
             process.exitCode = 1;
         }
     } else {
         console.log(chalk.red(`Unable to execute command ${chalk.bold(cmd)}`));
-        console.log(chalk.red(`It's possible the current folder does not contain a valid website`));
+        console.log(chalk.red(`It's possible the current folder does not contain a compatible website`));
     }
 };
 
