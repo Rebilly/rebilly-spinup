@@ -1,6 +1,6 @@
 {
   "name": "@rebilly/spinup-cli",
-  "version": "0.1.3",
+  "version": "0.1.0",
   "description": "Rebilly Spinup CLI for generating websites based on Rebilly's templates",
   "main": "bin/rebilly-spinup.js",
   "license": "MIT",
